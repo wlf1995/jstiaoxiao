@@ -1,0 +1,464 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Force based label placement</title>
+    <script src="../js/jquery-3.3.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="../css/d3.css"/>
+</head>
+<body>
+<div id="svgdiv" style="background-image: url('../img/bg01.jpg')"></div>
+
+<script type="text/javascript" charset="utf-8">
+    //画布的宽和高
+    var width = document.documentElement.clientWidth,
+        height = 800;
+    //返回上一层
+    var shangceng = {"name": "返回上一层", type: 'root-1', jieshao: '返回上一层', img: '../img/chart-back.png'};
+    //返回首层
+    var shouceng = {"name": "返回首层", type: 'root-2', jieshao: '返回首层', img: '../img/chart-index02.png'};
+    //根节点
+    var root = {"name": "根节点", type: 'root', jieshao: '根节点', img: '../img/planet-item.png'};
+    //上游原料
+    var sy_yl = {"name": "上游原料", type: 'root+1', jieshao: '上游原料', img: '../img/chain01.png'};
+    //下游产品
+    var sy_cp = {"name": "下游产品", type: 'root+2', jieshao: '下游产品', img: '../img/chain02.png'};
+    //分类产品
+    var fl_cp = {"name": "分类产品", type: 'root+3', jieshao: '分类产品', img: '../img/chain03.png',};
+    //所属领域
+    var fl_ly = {"name": "所属领域", type: 'root+4', jieshao: '所属领域', img: '../img/chain04.png'};
+    var init = true;//初始化根节点位置的标志，在第一次点击后更改为false
+    var init_1 = true;//初始化上游节点位置的标志，在第一次点击后更改为false
+    var init_2 = true;//初始化下游节点位置的标志，在第一次点击后更改为false
+    var init_3 = true;//初始化分类产品节点位置的标志，在第一次点击后更改为false
+    var init_4 = true;//初始化所属领域位置的标志，在第一次点击后更改为false
+
+    //获得ajax 返回的数据
+    var shuju1 = getshuju();
+    f(shuju1);
+
+    //获得数据
+    function getshuju() {
+        //设置根节点的内容
+        root.name = "测试";
+        root.jieshao = "测试";
+        //返回数据
+        return {
+            "code": 200,
+            "msg": "查询成功",
+            "data": {
+                "upList": [{
+                    "name": "颜料",
+                    "jieshao": "颜料"
+                }, {"name": "固化剂", "jieshao": "固化剂"}, {
+                    "name": "助剂",
+                    "jieshao": "助剂"
+                }, {
+                    "name": "填料",
+                    "jieshao": "填料"
+                }, {"name": "环氧树脂", "jieshao": "环氧树脂"}],
+                "downList": [{
+                    "name": "粉末涂料",
+                    "jieshao": "粉末涂料"
+                }, {
+                    "name": "汽车底漆",
+                    "jieshao": "汽车底漆"
+                }, {
+                    "name": "地坪涂料",
+                    "jieshao": "地坪涂料"
+                }, {"name": "防腐涂料", "jieshao": "防腐涂料"}],
+                "groupList": [{"name": "测试分类", "jieshao": "防腐涂料"}],
+                "affiliationList": [{"name": "测试所属领域", "jieshao": "防腐涂料"}]
+            }
+        };
+    }
+
+    //设置数据关系
+    function getNodes(data, links) {
+        var nodes = {};
+        nodes[data.name] = {
+            name: data.name,
+            type: data.type,
+            jieshao: data.jieshao,
+            img: data.img,
+        };
+        nodes[shangceng.name] = shangceng;
+        links.push({
+            target: nodes[shangceng.name],
+            source: nodes[data.name],
+        });
+        if (1 == 1) {//判断是否显示首层
+            nodes[shouceng.name] = shouceng;
+            links.push({
+                target: nodes[data.name],
+                source: nodes[shouceng.name],
+            });
+        }
+        //第一层子节点
+        if (data.children) {
+            var childrens = data.children;
+            for (var i = 0; i < childrens.length; i++) {
+                nodes[childrens[i].name] = {
+                    name: childrens[i].name,
+                    type: childrens[i].type,
+                    jieshao: childrens[i].jieshao
+                    , img: childrens[i].img
+                };
+                links.push({
+                    target: nodes[data.name],
+                    source: nodes[childrens[i].name],
+                });
+                //第二层子节点
+                if (childrens[i].children) {
+                    var childrens1 = childrens[i].children;
+                    var imgurl = "";
+                    var type = "";
+                    if (childrens[i].type == 'root+1') {//上游子节点
+                        imgurl = "../img/two01-1.png";
+                        type = 'root+1_1';
+                    } else if (childrens[i].type == 'root+2') {//下游子节点
+                        imgurl = "../img/two02-1.png";
+                        type = 'root+2_1';
+                    } else if (childrens[i].type == 'root+3') {//分类子节点
+                        imgurl = "../img/two03-1.png";
+                        type = 'root+3_1';
+                    } else if (childrens[i].type == 'root+4') {//所属领域子节点
+                        imgurl = "../img/two04.png";
+                        type = 'root+4_1';
+                    }
+                    for (var j = 0; j < childrens1.length; j++) {
+                        nodes[childrens1[j].name] = {
+                            name: childrens1[j].name,
+                            type: type,
+                            jieshao: childrens1[j].jieshao
+                            , img: imgurl
+                        };
+                        links.push({
+                            target: nodes[childrens[i].name],
+                            source: nodes[childrens1[j].name],
+                        });
+                    }
+                }
+            }
+        }
+        return nodes;
+    }
+
+
+    //设置图的的坐标
+    function transform1(d) {
+        if (d.type == 'root-1') {//返回上层
+            d.x = 850;
+            d.y = 600;
+        } else if (d.type == 'root-2') {//返回首层
+            d.x = 730;
+            d.y = 600;
+        } else if (d.type == 'root' && init) {
+            d.x = width / 2 * 0.9;
+            d.y = height * 0.7 - 150;
+        } else if (d.type == 'root+1' && init_1) {//上游
+            d.x = width / 2 * 0.9 - 200;
+            d.y = height * 0.7 - 150;
+        } else if (d.type == 'root+2' && init_2) {//下游
+            d.x = width / 2 * 0.9 + 200;
+            d.y = height * 0.7 - 150;
+        } else if (d.type == 'root+3' && init_3) {//所属领域
+            d.x = width / 2 * 0.9 - 80;
+            d.y = height * 0.7 - 300;
+        } else if (d.type == 'root+4' && init_4) {//分类产品
+            d.x = width / 2 * 0.9 + 100;
+            d.y = height * 0.7 - 300;
+        }
+        return "translate(" + d.x + "," + d.y + ")";
+    }
+
+    //计算文字位置
+    function transform1Text(d) {
+        var w = 90;
+        if (d.type == 'root') {
+            w = 120;
+        } else if (d.type == 'root-1' || d.type == 'root-2') {
+            w = 120;
+        } else if (d.type == 'root+1' || d.type == 'root+2' || d.type == 'root+3' || d.type == 'root+4') {
+            w = 100;
+        }
+        w = w * 0.5;
+        return "translate(" + (d.x + w) + "," + (d.y + w) + ")";
+    }
+
+    function drag(force) { //拖拽函数
+        return force.drag()
+            .on("dragstart", function (d) {
+                d3.event.sourceEvent.stopPropagation(); //取消默认事件
+            });
+    }
+
+    function f(shuju) {
+        d3.select("svg").remove();
+        d3.select(".tooltip").remove();
+        root.children = [];
+        //处理数据
+        if (shuju.data.upList || shuju.data.upList.length != 0) {
+            root.children.push(sy_yl);
+            sy_yl.children = shuju.data.upList;
+        }
+        if (shuju.data.downList || shuju.data.downList.length != 0) {
+            root.children.push(sy_cp);
+            sy_cp.children = shuju.data.downList;
+        }
+        if (shuju.data.groupList || shuju.data.groupList.length != 0) {
+            root.children.push(fl_ly);
+            fl_ly.children = shuju.data.groupList;
+        }
+        if (shuju.data.affiliationList || shuju.data.affiliationList.length != 0) {
+            root.children.push(fl_cp);
+            fl_cp.children = shuju.data.affiliationList;
+        }
+        //连线集合
+        var links = [];
+        //节点集合
+        var nodes = getNodes(root, links);
+        var force = d3.layout.force() //layout将json格式转化为力学图可用的格式
+            .nodes(d3.values(nodes)) //设定节点数组
+            .links(links) //设定连线数组
+            .size([width, height]) //大小
+            .linkDistance([150]) //连接线长度
+            .friction(0.5)
+            .gravity(0.001)
+            .charge(-3000) //值为+，则相互吸引，绝对值越大吸引力越大。值为-，则相互排斥，绝对值越大排斥力越大
+            .on("tick", tick) //指时间间隔，隔一段时间刷新一次画面
+            .start(); //开始转换
+        var zoom = d3.behavior.zoom() //缩放配置，
+            .scaleExtent([0, 2]) //缩放比例
+            .on("zoom", zoomed);
+
+        function zoomed() { //缩放函数
+            svg.selectAll("g").attr("transform", //svg下的g标签移动大小
+                "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+        }
+        var svg = d3.select("#svgdiv").append("svg") //添加svg元素进行图形的绘制
+            .attr("width", width)
+            .attr("height", height)
+            .attr("background-image", "url('../img/bg01.jpg')")
+            .call(zoom);
+        //设置连接线
+        var edges_line = svg.append("g").selectAll(".edgepath")
+            .data(force.links()) //连线数据
+            .enter() //当数组中的个数大于元素个数时，由d3创建空元素并与数组中超出的部分进行绑定。
+            //可以参考http://www.ourd3js.com/wordpress/797/ enter、exit、update的区别
+            .append("path") //添加path标签
+            .attr({
+                'd': function (d) {
+                    return 'M ' + d.source.x + ' ' + d.source.y + ' L ' + d.target.x + ' ' + d.target.y
+                }, //变量 d 是由D3.js提供的一个在匿名函数中的可用变量。这个变量是对当前要处理的元素的_data_属性的引用。
+                'class': 'edgepath', //定义该path标签class为edgepath
+                'id': function (d, i) {
+                    return 'edgepath' + i;
+                }
+            }) // i也是d3.js提供的变量，表示当前处理的HTML元素在已选元素选集中的索引值
+            .style("stroke", "#A254A2") //设置线条颜色
+            .style("stroke-width", 1) //线条粗细
+
+
+        //圆圈的提示文字 根据需要到数据库中进行读取数据
+        var tooltip = d3.select("#svgdiv")
+            .append("div") //添加div并设置成透明
+            .attr("class", "tooltip")
+            .style("opacity", 0.0);
+        //添加图片
+        var circle = svg.append("g")
+            .selectAll("image")
+            .data(force.nodes()) //表示使用force.nodes数据
+            .enter().append("image")
+            .attr("xlink:href", function (node) {
+                //设置背景图片
+                return node.img;
+            })
+            .attr("class", function (node) {
+                return node.type;
+            }).attr("id", function (node) {//设置id
+                return node.index;
+            })
+            .attr("width", function (node) {
+                var w = 90;
+                if (node.type == 'root') {
+                    w = 120;
+                } else if (node.type == 'root-1' || node.type == 'root-2') {
+                    w = 120;
+                } else if (node.type == 'root+1' || node.type == 'root+2' || node.type == 'root+3' || node.type == 'root+4') {
+                    w = 100;
+                }
+                return w;
+            })
+            .attr("height", function (node) {
+                var h = 90;
+                if (node.type == 'root') {
+                    h = 120;
+                } else if (node.type == 'root+1' || node.type == 'root+2' || node.type == 'root+3' || node.type == 'root+4') {
+                    h = 120;
+                } else if (node.type == 'root+1') {
+                    h = 100;
+                }
+                return h;
+            })
+            .on("click", function (node) {
+                if (node.type == "root-1") {//返回上一层点击事件
+                    alert("返回上一层");
+                } else if (node.type == "root-2") {//返回首层点击事件
+                    alert("返回首层");
+                } else if (node.type == "root+1_1") {//上游子节点点击事件
+                    alert("上游子节点");
+                } else if (node.type == "root+2_1") {//下游子节点点击事件
+                    alert("下游子节点");
+                } else if (node.type == "root+3_1") {//分类产品子节点点击事件
+                    alert("分类产品子节点");
+                }
+            }).on("mousedown", function (node) {
+                //鼠标摁下时让固定节点恢复拖拽
+                node.fixed = false;
+                if (node.type == 'root') {
+                    init = false;
+                }
+                if (node.type == 'root+1') {
+                    init_1 = false;
+                }
+                if (node.type == 'root+2') {
+                    init_2 = false;
+                }
+                if (node.type == 'root+3') {
+                    init_3 = false;
+                }
+                if (node.type == 'root+4') {
+                    init_4 = false;
+                }
+            })
+            .on("mouseover", function (d) {
+                tooltip.html(d.jieshao + "<br />")
+                    .style("left", (d3.event.pageX) + "px")
+                    .style("top", (d3.event.pageY + 20) + "px")
+                    .style("opacity", 1.0);
+            })
+            // .on("mousemove", function (d) {
+            //     tooltip.style("left", (d3.event.pageX) + "px")
+            //         .style("top", (d3.event.pageY + 20) + "px");
+            //
+            // })
+            .on("mouseout", function (d) {
+                tooltip.style("opacity", 0.0);
+
+            })
+            .call(drag(force)); //使顶点可以被拖动
+        svg.on("dblclick.zoom", null); //取消svg和圆圈的双击放大事件（d3中默认开启7个事件，关闭防止与上面的双击事件冲突）
+        circle.on("dblclick.zoom", null);
+        var text = svg.append("g").selectAll("text")
+            .data(force.nodes())
+            //返回缺失元素的占位对象（placeholder），指向绑定的数据中比选定元素集多出的一部分元素。
+            .enter()
+            .append("text") //添加text标签
+            .attr("dy", ".35em") //将文字下移
+            .attr("text-anchor", "middle") //在圆圈中加上数据
+            .style('fill', function (node) {
+                var color; //文字颜色
+                return color;
+            }).attr('x', function (d) {
+                var re_en = /[a-zA-Z]+/g;
+                //返回上层和返回首层不显示字
+                if (d.type == 'root-1' || d.type == 'root-2') {
+                    return "";
+                }
+                //如果是全英文，不换行
+                if (d.name.match(re_en)) {
+                    d3.select(this).append('tspan') //添加tspan用来方便时使用绝对或相对坐标来调整文本
+                        .attr('x', 0)
+                        .attr('y', 2)
+                        .text(function () {
+                            return d.name;
+                        });
+                }
+                //如果小于8个字符，不换行
+                else if (d.name.length <= 8) {
+                    d3.select(this).append('tspan')
+                        .attr('x', 0)
+                        .attr('y', 2)
+                        .text(function () {
+                            return d.name;
+                        });
+                } else if (d.name.length >= 16) { //大于16个字符时，将14个字后的内容显示为。。。
+                    var top = d.name.substring(0, 8);
+                    var bot = d.name.substring(8, 14) + "...";
+
+                    d3.select(this).text(function () {
+                        return '';
+                    });
+
+                    d3.select(this).append('tspan') //前n个字
+                        .attr('x', 0)
+                        .attr('y', -7)
+                        .text(function () {
+                            return top;
+                        });
+
+                    d3.select(this).append('tspan') //后n个字
+                        .attr('x', 0)
+                        .attr('y', 10)
+                        .text(function () {
+                            return bot;
+                        });
+
+                } else { //8-16字符分两行显示
+                    var top = d.name.substring(0, 8);
+                    var bot = d.name.substring(8, d.name.length);
+
+                    d3.select(this).text(function () {
+                        return '';
+                    });
+
+                    d3.select(this).append('tspan')
+                        .attr('x', 0)
+                        .attr('y', -7)
+                        .text(function () {
+                            return top;
+                        });
+
+                    d3.select(this).append('tspan')
+                        .attr('x', 0)
+                        .attr('y', 10)
+                        .text(function () {
+                            return bot;
+                        });
+                }
+
+            });
+
+        function tick() { //刷新页面函数
+            circle.attr("transform", transform1); //圆圈
+            text.attr("transform", transform1Text); //顶点文字
+            edges_line.attr('d', function (d) { //连接线
+                var w = 90;
+                if (d.source.type == 'root') {
+                    w = 120;
+                } else if (d.source.type == 'root-1' || d.source.type == 'root-2') {
+                    w = 120;
+                } else if (d.source.type == 'root+1' || d.source.type == 'root+2' || d.source.type == 'root+3' || d.source.type == 'root+4') {
+                    w = 100;
+                }
+                w = w * 0.5;
+                var h = 90;
+                if (d.target.type == 'root') {
+                    h = 120;
+                } else if (d.target.type == 'root-1' || d.target.type == 'root-2') {
+                    h = 120;
+                } else if (d.target.type == 'root+1' || d.target.type == 'root+2' || d.target.type == 'root+3' || d.target.type == 'root+4') {
+                    h = 100;
+                }
+                h = h * 0.5;
+
+                var path = 'M ' + (d.source.x + w) + ' ' + (d.source.y + w) + ' L ' + (d.target.x + h) + ' ' + (d.target.y + h);
+                return path;
+            });
+        }
+    }
+</script>
+</body>
+</html>

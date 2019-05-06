@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="../js/jquery-3.3.1.min.js"></script>
+    <script src='../js/three.js'></script>
+    <script src='https://threejs.org/examples/js/controls/OrbitControls.js'></script>
+    <style>
+        #world {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: -webkit-linear-gradient(#2a3340, #172533);
+            background: linear-gradient(#2a3340, #172533);
+        }
+
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+<!--<canvas id="mainCanvas" width="400px" height="300px" ></canvas>-->
+<div id="world"/>
+</body>
+<script>
+    var clickObjects=[];
+    initThreeClickEvent();
+    function initThreeClickEvent() {
+        //点击射线
+        var raycaster = new THREE.Raycaster();
+        var mouse = new THREE.Vector2();
+        document.getElementById("world").addEventListener('mousedown', onDocumentMouseDown, false);
+        function onDocumentMouseDown(event) {
+            event.preventDefault();
+            mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
+            mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            console.log("tst")
+            //总结一下，这里必须装网格，mesh，装入组是没有效果的
+            //所以我们将所有的盒子的网格放入对象就可以了
+            // 需要被监听的对象要存储在clickObjects中。
+            var intersects = raycaster.intersectObjects(clickObjects);
+
+            // console.log(intersects)
+            if(intersects.length > 0) {
+                // 在这里填写点击代码
+                console.log("dianji");
+                console.log(intersects[0].object)
+                // showDetailPage(intersects[0].object.name);
+            }
+
+        }
+    }
+    // 参数 自定义行星
+    var parameters = {
+        radius: 49,
+        particles: 5,
+        size: 15,
+    }
+
+
+    // For a THREEJS project we need at least
+    //对于一个THREEJS的项目，我们至少需要
+    // a scene 一个场景
+    // a renderer 一个渲染器
+    // a camera 一个相机
+    // a light (1 or many) 一个灯 或多个
+    // a mesh (an object to display) 网格(要显示的对象)
+
+    var scene, renderer, camera, saturn, light;
+
+    var WIDTH = window.innerWidth,
+        HEIGHT = window.innerHeight;
+
+    var controls;
+
+    //初始化
+    function initWorld() {
+        // 场景
+        scene = new THREE.Scene();
+        //透明相机
+        camera = new THREE.PerspectiveCamera(75, WIDTH / HEIGHT, .1, 2000);
+        camera.position.z = 100;
+        //渲染器
+        renderer = new THREE.WebGLRenderer({
+            // canvas: document.getElementById('mainCanvas'),
+            alpha: true,
+            antialias: true
+        });
+        renderer.setSize(WIDTH, HEIGHT);
+        // renderer.shadowMapEnabled = true;
+
+        //使渲染器使用#world div渲染le场景
+
+        container = document.getElementById('world');
+        container.appendChild(renderer.domElement);
+        //
+        // 灯光
+        ambientLight = new THREE.AmbientLight(0x663344);
+        scene.add(ambientLight);
+        light = new THREE.DirectionalLight(0xffffff, 1.5);
+        light.position.set(200, 100, 200);
+        light.castShadow = true;
+        scene.add(light);
+        //控制
+        //用于用鼠标在场景中旋转
+        //你可以拖动来旋转，滚动来缩放
+        // controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        //
+        // 处理屏幕大小 HANDLE SCREEN RESIZE
+        //
+        window.addEventListener('resize', handleWindowResize, false);
+
+        //
+        // 创建地球对象
+        //
+        saturn = new Saturn();
+        saturn.mesh.rotation.x = .2;
+        // saturn.mesh.rotation.z = .2;
+        scene.add(saturn.mesh);
+
+        // START THE LOOP
+        loop();
+
+    }
+
+    var Saturn = function () {
+        // 创建一个网格CREATE A MESH
+        // 行星的几何形状是四面体
+        var geomPlanet = new THREE.CircleGeometry(25,100);
+        // 为地球创造一种新材料 create a new material for the planet
+        // var canvasTexture = new THREE.CanvasTexture(getCanvas("金红石钛白粉",  '../img/planet-root.png'));
+        // var matPlanet = new THREE.MeshBasicMaterial( {map:canvasTexture} );
+        var texture = THREE.ImageUtils.loadTexture('../img/147_03.png', {}, function () {
+            renderer.render(scene, camera);
+        });
+        var matPlanet = new THREE.MeshBasicMaterial({map: texture});
+        // 创建行星的网格create the mesh of the planet
+        this.planet = new THREE.Mesh(geomPlanet, matPlanet);
+        //添加name，在点击事件中区分元素
+        this.planet.name="root";
+        this.ring = new THREE.Mesh();
+        this.nParticles = 0;
+
+        // 创建粒子来填充环create the particles to populate the ring
+        this.updateParticlesCount();
+        clickObjects.push(this.planet)
+        // 创建一个全球网格来容纳行星和光环
+        this.mesh = new THREE.Mesh();
+        this.mesh.add(this.planet);
+        this.mesh.add(this.ring);
+        // this.planet.castShadow = true;
+        //更新粒子的位置=>必须移动到循环中 update the position of the particles => must be moved to the loop
+        this.updateParticlesRotation();
+    }
+
+    Saturn.prototype.updateParticlesCount = function () {
+        if (this.nParticles < parameters.particles) {
+            //添加粒子
+            for (var i = this.nParticles; i < parameters.particles; i++) {
+                var p = new Particle("name"+i);
+                this.ring.add(p.mesh);
+            }
+        } else {
+            //删除粒子
+            while (this.nParticles > parameters.particles) {
+                var m = this.ring.children[this.nParticles - 1];
+                this.ring.remove(m);
+                m.userData.po = null;
+                this.nParticles--;
+            }
+        }
+        this.nParticles = parameters.particles;
+        //我们将给每个粒子一个特定的角度
+        //为了覆盖整个戒指，我们需要
+        //定期发送
+        // We will give a specific angle to each particle
+        // to cover the whole ring we need to
+        // dispatch them regularly
+        this.angleStep = Math.PI * 2 / this.nParticles;
+        this.updateParticlesDefiniton();
+    }
+
+    //更新粒子的定义 Update particles definition
+    Saturn.prototype.updateParticlesDefiniton = function () {
+        for (var i = 0; i < this.nParticles; i++) {
+            var m = this.ring.children[i];
+            var s = parameters.size;
+            m.scale.set(s, s, s);
+            // 距离
+            m.userData.distance = parameters.radius;
+            // 给每个粒子一个独特的角度（位置，不能写死）
+            m.userData.angle = this.angleStep * i;
+            //角速度
+            m.userData.angularSpeed = 0.01;
+        }
+    }
+
+    var Particle = function (name) {
+        // 粒子的大小
+        var s = 0.5;
+        // 粒子的几何形状，圆
+        // geom = new THREE.TetrahedronGeometry(s, 2);
+
+        var geom = new THREE.CircleGeometry(s, 100);
+        var texture = THREE.ImageUtils.loadTexture('../img/planet-root.png', {}, function () {
+            renderer.render(scene, camera);
+        });
+        var matPlanet = new THREE.MeshBasicMaterial({map: texture});
+        // 粒子的颜色，得到一个材质,
+        // var mat =new THREE.MeshPhongMaterial({
+        //     color: Colors.blue,
+        //     // shininess: 0,
+        //     // specular: 0x000000,
+        //     // shading: THREE.FlatShading // THREE.SmoothShading
+        // })
+
+        // 创建粒子的网格 create the mesh of the particle
+        this.mesh = new THREE.Mesh(geom, matPlanet);
+        //添加name
+        this.mesh.name=name;
+        clickObjects.push(this.mesh)
+        // this.mesh.receiveShadow = true;
+        this.mesh.userData.po = this;
+    }
+    // 更新位置
+    Saturn.prototype.updateParticlesRotation = function () {
+        // 增加每个粒子的旋转并更新其位置
+        for (var i = 0; i < this.nParticles; i++) {
+            var m = this.ring.children[i];
+            // 增加行星周围的旋转角度
+            m.userData.angle += m.userData.angularSpeed;
+
+            //计算新的位置
+            var posX = Math.cos(m.userData.angle) * m.userData.distance;
+            var posZ = Math.sin(m.userData.angle) * m.userData.distance;
+            m.position.x = posX;
+            m.position.z = posZ;
+            // 向粒子添加局部旋转
+            // m.rotation.x += Math.random() * .05;
+            // m.rotation.y += Math.random() * .05;
+            // m.rotation.z += Math.random() * .05;
+        }
+    }
+
+
+    function loop() {
+        // 让立方体旋转 在每帧中增加少量旋转
+        //cube.rotation.z +=.01;
+        //cube.rotation.x +=.05;
+        //让地球自转
+        // saturn.planet.rotation.y -= .01;
+        saturn.updateParticlesRotation();
+        // 渲染 !
+        renderer.render(scene, camera);
+        // REQUEST A NEW FRAME
+        requestAnimationFrame(loop);
+    }
+
+    function handleWindowResize() {
+        // 重新计算宽度和高度，因为它们已经改变
+        HEIGHT = window.innerHeight;
+        WIDTH = window.innerWidth;
+        // 更新渲染器和相机
+        renderer.setSize(WIDTH, HEIGHT);
+        camera.aspect = WIDTH / HEIGHT;
+        camera.updateProjectionMatrix();
+    }
+
+
+
+    var flag=false;
+    //canvse绘制图片
+    function getCanvas(text, img) {
+        var image = new Image();
+        image.src =img;
+        var width = 512, height = 512;
+        var canvas = document.createElement('Canvas');
+        canvas.width = width;
+        canvas.height = height;
+        var ctx = canvas.getContext('2d');
+        image.onload = function(){
+            // 将图片画到canvas上面上去！
+            ctx.drawImage(image, 0, 0, 400, 400);
+
+            flag=true;
+        }
+        ctx.font = 25 + 'px " bold';
+        ctx.fillStyle = '#2891FF';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 200, 200);
+        return canvas;
+    }
+    // textCanvas = getTextCanvas("金红石钛白粉","../img/planet-root.png");
+    // $("#world").append(textCanvas);
+    // init()
+    initWorld();
+
+</script>
+</html>
